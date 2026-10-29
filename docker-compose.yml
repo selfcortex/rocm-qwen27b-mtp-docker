@@ -1,0 +1,68 @@
+services:
+  llama-server:
+    image: ghcr.io/ggml-org/llama.cpp:server-rocm
+    container_name: llama-qwen27b
+    restart: "no"
+    network_mode: host
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - "983"
+      - "987"
+    ipc: host
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - HSA_OVERRIDE_GFX_VERSION=10.3.0
+      - AMD_SERIALIZE_KERNEL=0
+      - HSA_OVERCOMMIT=0
+      - LLAMA_ARG_MMPROJ_OFFLOAD=false
+      - LLAMA_ARG_REASONING_EFFORT=medium
+    volumes:
+      - /mnt/GameLinux/models/HauhauCS/27b_iq4s:/models:ro
+    command:
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8080"
+      - --alias
+      - "qwen-27b"
+      - -m
+      - "/models/Qwen3.8-27B-UD-IQ4_XS.gguf"
+      - --mmproj
+      - "/models/mmproj-model-bf16.gguf"
+      - --no-mmproj-offload
+      - -ngl
+      - "999"
+      - -np
+      - "1"
+      - -c
+      - "49152"
+      - -t
+      - "6"
+      - -b
+      - "2048"
+      - -ub
+      - "256"
+      - --flash-attn
+      - "on"
+      - -ctk
+      - "q4_0"
+      - -ctv
+      - "q4_0"
+      - --spec-type
+      - "draft-mtp"
+      - --spec-draft-n-max
+      - "2"
+      - --spec-draft-p-min
+      - "0.75"
+      - --reasoning
+      - "on"
+      - --reasoning-format
+      - "deepseek"
+      - --reasoning-effort
+      - "medium"
+      - --no-reasoning-preserve
+      - --reasoning-budget
+      - "2048"
