@@ -3,7 +3,7 @@ set -e
 
 cleanup() {
     echo -e "\n[*] Stopping inference and restoring desktop..."
-    docker compose stop > /dev/null 2>&1 || true
+    docker compose --profile llama stop llama-server > /dev/null 2>&1 || true
     sudo systemctl isolate graphical.target
     exit 0
 }
@@ -17,8 +17,8 @@ echo "[2/4] Kernel tuning: dropping caches & setting performance governor..."
 sudo sync && echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
 sudo cpupower frequency-set -g performance > /dev/null 2>&1 || true
 
-echo "[3/4] Launching Docker container..."
-docker compose up -d --force-recreate
+echo "[3/4] Launching Docker container (monitoring stack is not touched)..."
+docker compose --profile llama up -d llama-server
 
 echo "[4/4] Attaching to live logs (Press Ctrl+C to exit and restore GUI):"
 docker logs -f llama-qwen27b

@@ -1,3 +1,7 @@
 .env
+secrets/
 *.log
 *.gguf
+ОТЧЁТ.md
+мониторинг.txt
+

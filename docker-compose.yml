@@ -1,35 +1,63 @@
+# ============================================================================
+# llama.cpp (ROCm) inference + local monitoring stack
+#
+#   Monitoring (always on, restart: unless-stopped):
+#     docker compose up -d
+#
+#   Inference session (starts/stops the GPU server; monitoring stays up):
+#     ./run.sh
+#     # or: docker compose --profile llama up -d --force-recreate llama-server
+#     #      docker compose --profile llama stop llama-server
+#
+#   Secrets live in .env (gitignored). Copy .env.example and fill it in.
+#   Published ports: only Grafana, bound to LAN_IP (not 0.0.0.0).
+#   Prometheus and node-exporter are internal to the compose network.
+# ============================================================================
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
+  # ---------------------------------------------------------------------------
+  # llama.cpp server - ROCm, host network, managed by ./run.sh (profile "llama")
+  # ---------------------------------------------------------------------------
   llama-server:
-    image: ghcr.io/ggml-org/llama.cpp:server-rocm
+    image: ghcr.io/ggml-org/llama.cpp@sha256:6da04cde049c6410fd93a45810dc2072ea8c8041ad9fc091f48e3064e322fb83
     container_name: llama-qwen27b
     restart: "no"
+    profiles: ["llama"]
     network_mode: host
     devices:
       - /dev/kfd
       - /dev/dri
     group_add:
-      - "983"
-      - "987"
+      - "${VIDEO_GID:-983}"
+      - "${RENDER_GID:-987}"
     ipc: host
     security_opt:
       - seccomp:unconfined
     environment:
-      - HSA_OVERRIDE_GFX_VERSION=10.3.0
+      - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION:-10.3.0}
       - AMD_SERIALIZE_KERNEL=0
       - HSA_OVERCOMMIT=0
       - LLAMA_ARG_MMPROJ_OFFLOAD=false
       - LLAMA_ARG_REASONING_EFFORT=medium
     volumes:
       - /mnt/GameLinux/models/HauhauCS/27b_iq4s:/models:ro
+      - /mnt/AI:/models_nvme:ro
     command:
       - --host
       - "0.0.0.0"
       - --port
       - "8080"
+      - --metrics
       - --alias
       - "qwen-27b"
       - -m
-      - "/models/Qwen3.8-27B-UD-IQ4_XS.gguf"
+      - "/models_nvme/Qwen3.8-27B-UD-IQ4_XS.gguf"
       - --mmproj
       - "/models/mmproj-model-bf16.gguf"
       - --no-mmproj-offload
@@ -38,7 +66,7 @@ services:
       - -np
       - "1"
       - -c
-      - "49152"
+      - "65000"
       - -t
       - "6"
       - -b
@@ -48,7 +76,7 @@ services:
       - --flash-attn
       - "on"
       - -ctk
-      - "q4_0"
+      - "q8_0"
       - -ctv
       - "q4_0"
       - --spec-type
@@ -62,7 +90,98 @@ services:
       - --reasoning-format
       - "deepseek"
       - --reasoning-effort
-      - "medium"
+      - "xhigh"
       - --no-reasoning-preserve
-      - --reasoning-budget
-      - "2048"
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Host metrics: CPU / RAM / disk + AMD GPU (amdgpu via /sys: drm + hwmon)
+  # Read-only mounts; needs /sys to see /sys/class/drm/card*/device
+  # ---------------------------------------------------------------------------
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    container_name: llama-node-exporter
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      # GPU (busy %, VRAM) is read from /sys/class/drm by the "drm" collector,
+      # disabled by default in node-exporter 1.x -> enable explicitly.
+      # Temperature / power / fan come from the "hwmon" collector (default on).
+      - --collector.drm
+    volumes:
+      - /:/host:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /run/udev/data:/run/udev/data:ro
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # One-shot init: fix ownership of the prom-data volume.
+  # The image's /data dir is empty, so Docker creates the named volume
+  # root-owned; prometheus runs as nobody (65534) and needs write access.
+  # Exits immediately; a no-op on subsequent starts.
+  # ---------------------------------------------------------------------------
+  prometheus-init:
+    image: prom/prometheus:v3.16.0
+    container_name: llama-prometheus-init
+    user: root
+    entrypoint: ["sh", "-c", "chown -R 65534:65534 /data"]
+    volumes:
+      - prom-data:/data
+    restart: "no"
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Prometheus - scrapes node-exporter + llama-server, 2 days retention.
+  # Internal only: no published ports (Grafana reaches it on the compose net).
+  # host.docker.internal -> host-gateway: llama-server runs with network_mode
+  # host on the host machine, so it is reached via the host's bridge IP.
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    container_name: llama-prometheus
+    restart: unless-stopped
+    depends_on:
+      prometheus-init:
+        condition: service_completed_successfully
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/data
+      - --storage.tsdb.retention.time=2d
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/targets:/etc/prometheus/targets:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prom-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Grafana - provisioning from files (datasource + dashboards, no UI clicks).
+  # Published on the LAN interface only (LAN_IP in .env), not 0.0.0.0.
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:13.3.1
+    container_name: llama-grafana
+    restart: unless-stopped
+    ports:
+      - "${LAN_IP:-192.168.1.215}:3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD in .env}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    logging: *default-logging
+
+volumes:
+  prom-data:
+  grafana-data:

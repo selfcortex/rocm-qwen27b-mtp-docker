@@ -1,0 +1,350 @@
+{
+  "uid": "llama-rocm",
+  "title": "llama.cpp + GPU (ROCm)",
+  "tags": ["llama.cpp", "rocm", "amd", "inference"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "templating": {
+    "list": [
+      {
+        "name": "card",
+        "label": "GPU card",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(node_drm_gpu_busy_percent, card)",
+        "refresh": 1,
+        "includeAll": false,
+        "multi": false,
+        "current": { "text": "card1", "value": "card1" }
+      }
+    ]
+  },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "type": "row", "title": "Overview", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false, "id": 100
+    },
+    {
+      "type": "stat", "title": "llama-server", "id": 1,
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "mappings": [
+          { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
+          { "type": "value", "options": { "1": { "text": "UP", "color": "green" } } }
+        ], "thresholds": { "mode": "absolute", "steps": [
+          { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+      }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        { "refId": "A", "expr": "up{job=\"llama\"}", "legendFormat": "" }
+      ]
+    },
+    {
+      "type": "stat", "title": "Scrape targets", "id": 2,
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "mappings": [
+          { "type": "value", "options": { "0": { "text": "DEGRADED", "color": "red" } } },
+          { "type": "value", "options": { "1": { "text": "ALL UP", "color": "green" } } }
+        ], "thresholds": { "mode": "absolute", "steps": [
+          { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+      }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        { "refId": "A", "expr": "sum(up) == count(up)", "legendFormat": "" }
+      ]
+    },
+    {
+      "type": "stat", "title": "KV context (peak / max)", "id": 3,
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "unit": "short",
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 50000 },
+          { "color": "red", "value": 65000 } ] }
+      }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        { "refId": "A", "expr": "llamacpp:n_tokens_max", "legendFormat": "" }
+      ]
+    },
+    {
+      "type": "stat", "title": "Requests: processing / deferred", "id": 4,
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "unit": "short",
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 2 } ] }
+      }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        { "refId": "A", "expr": "llamacpp:requests_processing", "legendFormat": "processing" },
+        { "refId": "B", "expr": "llamacpp:requests_deferred", "legendFormat": "deferred" }
+      ]
+    },
+    {
+      "type": "row", "title": "GPU (AMD / amdgpu via /sys)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "collapsed": false, "id": 200
+    },
+    {
+      "type": "timeseries", "title": "GPU busy %", "id": 10,
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "unit": "percent", "min": 0, "max": 100,
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 80 },
+          { "color": "red", "value": 95 } ] }
+      }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        { "refId": "A", "expr": "node_drm_gpu_busy_percent{card=\"$card\"}", "legendFormat": "GPU busy %" }
+      ]
+    },
+    {
+      "type": "gauge", "title": "VRAM used", "id": 11,
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "unit": "percent", "min": 0, "max": 100,
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 85 },
+          { "color": "red", "value": 95 } ] }
+      }, "overrides": [] },
+      "options": { "show": "always" },
+      "targets": [
+        { "refId": "A", "expr": "100 * node_drm_memory_vram_used_bytes{card=\"$card\"} / node_drm_memory_vram_size_bytes{card=\"$card\"}", "legendFormat": "VRAM" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "VRAM (GiB)", "id": 12,
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "gib", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "node_drm_memory_vram_used_bytes{card=\"$card\"} / 1024^3", "legendFormat": "used" },
+        { "refId": "B", "expr": "node_drm_memory_vram_size_bytes{card=\"$card\"} / 1024^3", "legendFormat": "total" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Temperature", "id": 13,
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "unit": "celsius",
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 75 },
+          { "color": "red", "value": 85 } ] }
+      }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "node_hwmon_temp_celsius{chip=~\"0000:.*\", sensor=\"temp1\"}", "legendFormat": "GPU (edge)" },
+        { "refId": "B", "expr": "node_hwmon_temp_celsius{chip=~\"0000:.*\", sensor=\"temp2\"}", "legendFormat": "VRAM (mem)" },
+        { "refId": "C", "expr": "node_hwmon_temp_celsius{chip=~\"0000:.*\", sensor=\"temp3\"}", "legendFormat": "Hotspot" },
+        { "refId": "D", "expr": "node_hwmon_temp_crit_celsius{chip=~\"0000:.*\"}", "legendFormat": "crit {{sensor}}" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Power (W)", "id": 14,
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "watt" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "node_hwmon_power_average_watt{chip=~\"0000:.*\"}", "legendFormat": "average" },
+        { "refId": "B", "expr": "node_hwmon_power_cap_watt{chip=~\"0000:.*\"}", "legendFormat": "cap" },
+        { "refId": "C", "expr": "node_hwmon_power_cap_max_watt{chip=~\"0000:.*\"}", "legendFormat": "cap max" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Fan (RPM)", "id": 15,
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "rpm" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "node_hwmon_fan_rpm{chip=~\"0000:.*\"}", "legendFormat": "fan" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Clocks (MHz)", "id": 16,
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "mhz" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "node_hwmon_freq_freq_mhz{chip=~\"0000:.*\", sensor=\"sclk\"}", "legendFormat": "core (sclk)" },
+        { "refId": "B", "expr": "node_hwmon_freq_freq_mhz{chip=~\"0000:.*\", sensor=\"mclk\"}", "legendFormat": "memory (mclk)" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "GPU busy % (detailed)", "id": 17,
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        { "refId": "A", "expr": "avg_over_time(node_drm_gpu_busy_percent{card=\"$card\"}[1m])", "legendFormat": "avg 1m" },
+        { "refId": "B", "expr": "max_over_time(node_drm_gpu_busy_percent{card=\"$card\"}[1m])", "legendFormat": "max 1m" }
+      ]
+    },
+    {
+      "type": "row", "title": "Inference (llama-server /metrics, llamacpp:*)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "collapsed": false, "id": 300
+    },
+    {
+      "type": "stat", "title": "Generation tok/s (active, 5m)", "id": 20,
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "cps", "decimals": 1 }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "rate(llamacpp:tokens_predicted_total[5m]) / rate(llamacpp:tokens_predicted_seconds_total[5m])", "legendFormat": "" }
+      ]
+    },
+    {
+      "type": "stat", "title": "Prompt tok/s (active, 5m)", "id": 21,
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "cps", "decimals": 1 }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "rate(llamacpp:prompt_tokens_total[5m]) / rate(llamacpp:prompt_seconds_total[5m])", "legendFormat": "" }
+      ]
+    },
+    {
+      "type": "stat", "title": "MTP acceptance (5m)", "id": 22,
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "unit": "percent", "decimals": 1, "min": 0, "max": 100,
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "red", "value": null },
+          { "color": "yellow", "value": 50 },
+          { "color": "green", "value": 75 } ] }
+      }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "100 * rate(llamacpp:spec_decode_num_accepted_tokens_total[5m]) / rate(llamacpp:spec_decode_num_draft_tokens_total[5m])", "legendFormat": "" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Generation tok/s (active time)", "id": 23,
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "cps", "decimals": 1 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "rate(llamacpp:tokens_predicted_total[5m]) / rate(llamacpp:tokens_predicted_seconds_total[5m])", "legendFormat": "5m (active time)" },
+        { "refId": "B", "expr": "rate(llamacpp:tokens_predicted_total[1m]) / rate(llamacpp:tokens_predicted_seconds_total[1m])", "legendFormat": "1m (active time)" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Prompt tok/s (active time)", "id": 24,
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "cps", "decimals": 1 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "rate(llamacpp:prompt_tokens_total[5m]) / rate(llamacpp:prompt_seconds_total[5m])", "legendFormat": "5m (active time)" },
+        { "refId": "B", "expr": "rate(llamacpp:prompt_tokens_total[1m]) / rate(llamacpp:prompt_seconds_total[1m])", "legendFormat": "1m (active time)" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "KV context (peak sequence length)", "id": 25,
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 39 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "llamacpp:n_tokens_max", "legendFormat": "peak used" },
+        { "refId": "B", "expr": "65000", "legendFormat": "max (-c)" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Requests / decode activity", "id": 26,
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 39 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "llamacpp:requests_processing", "legendFormat": "processing" },
+        { "refId": "B", "expr": "llamacpp:requests_deferred", "legendFormat": "deferred" },
+        { "refId": "C", "expr": "rate(llamacpp:n_decode_total[5m])", "legendFormat": "decode calls/s" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "MTP accepted tokens per position (cumulative)", "id": 27,
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 46 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "llamacpp:spec_decode_num_accepted_tokens_per_pos_total", "legendFormat": "position {{position}}" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Speculative decoding MTP (rate 5m)", "id": 28,
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 46 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "cps" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "rate(llamacpp:spec_decode_num_draft_tokens_total[5m])", "legendFormat": "draft" },
+        { "refId": "B", "expr": "rate(llamacpp:spec_decode_num_accepted_tokens_total[5m])", "legendFormat": "accepted" }
+      ]
+    },
+    {
+      "type": "row", "title": "Host", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 53 },
+      "collapsed": false, "id": 400
+    },
+    {
+      "type": "timeseries", "title": "CPU usage %", "id": 30,
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 54 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        { "refId": "A", "expr": "100 - (avg(rate(node_cpu_seconds_total{job=\"node\"}[5m])) by (instance) * 100)", "legendFormat": "CPU" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "RAM used", "id": 31,
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 54 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "node_memory_MemTotal_bytes{job=\"node\"} - node_memory_MemAvailable_bytes{job=\"node\"}", "legendFormat": "used" },
+        { "refId": "B", "expr": "node_memory_MemTotal_bytes{job=\"node\"}", "legendFormat": "total" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Root disk used %", "id": 32,
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 54 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        { "refId": "A", "expr": "100 * (1 - node_filesystem_avail_bytes{job=\"node\", mountpoint=\"/\"} / node_filesystem_size_bytes{job=\"node\", mountpoint=\"/\"})", "legendFormat": "used" }
+      ]
+    }
+  ]
+}

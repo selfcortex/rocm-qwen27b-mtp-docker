@@ -1,0 +1,7 @@
+# llama-server target (file_sd).
+# Host variant (current): llama-server uses network_mode: host, reached via
+# host.docker.internal (mapped to host-gateway in docker-compose.yml).
+# Compose variant: replace with ["llama-server:8080"].
+- targets: ["host.docker.internal:8080"]
+  labels:
+    service: llama-server
