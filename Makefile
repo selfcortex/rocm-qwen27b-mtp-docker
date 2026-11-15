@@ -4,7 +4,7 @@ COMPOSE ?= docker compose
 
 init: ## One-time setup: .env from example + generate the llama API key
 	@test -f .env || cp .env.example .env
-	@test -f secrets/llama_api_key || { mkdir -p secrets; head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > secrets/llama_api_key; chmod 600 secrets/llama_api_key; }
+	@test -f secrets/llama_api_key || { mkdir -p secrets; head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > secrets/llama_api_key; chmod 644 secrets/llama_api_key; }
 	@echo ".env and secrets/llama_api_key are ready (both gitignored)"
 
 help: ## Show this help
