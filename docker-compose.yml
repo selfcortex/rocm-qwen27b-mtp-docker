@@ -104,6 +104,15 @@ services:
       - --reasoning-effort
       - "medium"
       - --no-reasoning-preserve
+    # /health is public (no key needed) - see C-01. start_period covers
+    # the model load; the container is NOT killed on failure (restart: "no"),
+    # the status is for `up --wait` and `docker compose ps` to use.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 2
+      start_period: 180s
     logging: *default-logging
 
   # ---------------------------------------------------------------------------
@@ -125,6 +134,12 @@ services:
       # disabled by default in node-exporter 1.x -> enable explicitly.
       # Temperature / power / fan come from the "hwmon" collector (default on).
       - --collector.drm
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 2
+      start_period: 15s
     volumes:
       - /:/host:ro
       - /proc:/host/proc:ro
@@ -166,6 +181,12 @@ services:
       - --storage.tsdb.path=/data
       - --storage.tsdb.retention.time=2d
       - --web.enable-lifecycle
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 2
+      start_period: 15s
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/targets:/etc/prometheus/targets:ro
@@ -192,10 +213,21 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD in .env}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=false
+    # Wait for Prometheus before Grafana starts (datasource is provisioned
+    # from file, but a healthy Prometheus at first boot avoids empty panels).
+    depends_on:
+      prometheus:
+        condition: service_healthy
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 2
+      start_period: 20s
     logging: *default-logging
 
 volumes:

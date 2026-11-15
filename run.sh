@@ -18,7 +18,8 @@ sudo sync && echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
 sudo cpupower frequency-set -g performance > /dev/null 2>&1 || true
 
 echo "[3/4] Launching Docker container (monitoring stack is not touched)..."
-docker compose --profile llama up -d llama-server
+# --wait: block until the model is actually loaded (healthcheck), not just started
+docker compose --profile llama up -d --wait llama-server
 
 echo "[4/4] Attaching to live logs (Press Ctrl+C to exit and restore GUI):"
 docker logs -f llama-qwen27b

@@ -11,7 +11,7 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  \033[36m%-8s\033[0m %s\n", $$1, $$2}'
 
 up: ## Start the monitoring stack (node-exporter, prometheus, grafana)
-	$(COMPOSE) up -d
+	$(COMPOSE) up -d --wait
 
 down: ## Stop and remove the monitoring stack
 	$(COMPOSE) down
