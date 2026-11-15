@@ -2,6 +2,7 @@
 secrets/
 *.log
 *.gguf
+logs/
 ОТЧЁТ.md
 мониторинг.txt
 collect_debug.sh
