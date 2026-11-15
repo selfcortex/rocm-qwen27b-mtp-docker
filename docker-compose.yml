@@ -42,11 +42,11 @@ services:
     security_opt:
       - seccomp:unconfined
     environment:
+      # Only the gfx override: AMD_SERIALIZE_KERNEL/HSA_OVERCOMMIT are
+      # default no-ops, and the other LLAMA_ARG_* env vars were shadowed
+      # by the CLI flags below (the server logged a warning for each one).
+      # The CLI is the single source of truth.
       - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION:-10.3.0}
-      - AMD_SERIALIZE_KERNEL=0
-      - HSA_OVERCOMMIT=0
-      - LLAMA_ARG_MMPROJ_OFFLOAD=false
-      - LLAMA_ARG_REASONING_EFFORT=medium
     volumes:
       # Single-file read-only mounts: the container sees only the two model
       # files, not the rest of the host filesystem. Paths come from .env.
@@ -240,6 +240,11 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD in .env}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=false
+      # M-06: no telemetry / phone-home.
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
     # Wait for Prometheus before Grafana starts (datasource is provisioned
     # from file, but a healthy Prometheus at first boot avoids empty panels).
     depends_on:
