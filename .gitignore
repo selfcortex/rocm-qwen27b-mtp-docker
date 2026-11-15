@@ -4,6 +4,7 @@ secrets/
 *.gguf
 logs/
 ОТЧЁТ.md
+AUDIT_AND_IMPLEMENTATION_GUIDE.md
 мониторинг.txt
 collect_debug.sh
 
