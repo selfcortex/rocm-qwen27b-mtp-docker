@@ -48,12 +48,20 @@ services:
     volumes:
       - /mnt/GameLinux/models/HauhauCS/27b_iq4s:/models:ro
       - /mnt/AI:/models_nvme:ro
+      - ./secrets/llama_api_key:/run/secrets/llama_api_key:ro
     command:
       - --host
       - "0.0.0.0"
       - --port
       - "8080"
       - --metrics
+      # Auth: every route except /health and the embedded UI requires the key
+      # (verified in the pinned build's source). File is created by `make init`.
+      - --api-key-file
+      - /run/secrets/llama_api_key
+      # The server serves its own UI same-origin; no cross-origin clients.
+      - --cors-origins
+      - localhost
       - --alias
       - "qwen-27b"
       - -m
@@ -156,6 +164,8 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/targets:/etc/prometheus/targets:ro
       - ./prometheus/rules:/etc/prometheus/rules:ro
+      # Same key as llama-server: /metrics requires it (see prometheus.yml).
+      - ./secrets/llama_api_key:/etc/prometheus/keys/llama_api_key:ro
       - prom-data:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"

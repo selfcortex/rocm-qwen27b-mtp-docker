@@ -25,6 +25,12 @@ scrape_configs:
   #   in compose:  targets: ["llama-server:8080"]
   #   on host:     targets: ["host.docker.internal:8080"]
   - job_name: llama
+    # /metrics requires the API key (verified in the pinned llama.cpp build:
+    # the auth middleware covers all routes except /health and UI assets).
+    # credentials_file is re-read on every scrape, so key rotation needs no reload.
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/keys/llama_api_key
     file_sd_configs:
       - files: ["targets/llama.yml"]
         refresh_interval: 30s
