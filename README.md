@@ -72,6 +72,7 @@ Host (CachyOS)
 - **GPU metrics without special exporters.** The official AMD Device Metrics Exporter only supports Instinct cards, so node-exporter reads `amdgpu` straight from the kernel: `/sys/class/drm/card*/device` (busy %, VRAM) and `hwmon` (temperature, power, fan, clock). Read-only mounts, `pid: host`.
 - **llama target via `file_sd`** (`prometheus/targets/llama.yml`): the server runs on the host's network, so Prometheus reaches it through `host.docker.internal` (mapped to `host-gateway`). Switching to an in-compose server later is a one-line change.
 - **Only Grafana is published**, and only on the LAN interface (`LAN_IP:3000`). Prometheus and node-exporter have no published ports at all.
+- **Network traffic counters are intentionally not collected.** `/proc/net` is per network namespace: read from inside the container it describes the container's `eth0`, not the host NICs. The `netdev`/`netstat`/`sockstat` collectors are therefore disabled. (The `netclass` interface-metadata collector reads the host's `/sys` mount and does report host interfaces — that part is accurate.) CPU/RAM/disk/GPU are the point of this stack.
 - **Dashboards as code**: datasource and dashboards are provisioned from files — a clean `docker compose up -d` on a fresh machine is enough.
 
 ## 🚀 Quickstart

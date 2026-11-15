@@ -134,12 +134,26 @@ services:
       # disabled by default in node-exporter 1.x -> enable explicitly.
       # Temperature / power / fan come from the "hwmon" collector (default on).
       - --collector.drm
+      # M-02: /proc/net is per network namespace - read from this container
+      # it describes the bridge eth0, not the host NICs, so the network
+      # collectors would report wrong data. Host network metrics are
+      # intentionally not collected (see README).
+      - --no-collector.netdev
+      - --no-collector.netstat
+      - --no-collector.sockstat
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:9100/metrics"]
       interval: 30s
       timeout: 5s
       retries: 2
       start_period: 15s
+    # M-09: the collectors only read /host/{,proc,sys}, so a read-only
+    # rootfs without capabilities is sufficient.
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    pids_limit: 64
     volumes:
       - /:/host:ro
       - /proc:/host/proc:ro
@@ -180,13 +194,26 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/data
       - --storage.tsdb.retention.time=2d
-      - --web.enable-lifecycle
+      # L-10: disk guard on top of the time-based retention.
+      - --storage.tsdb.retention.size=2GB
+      # M-04: --web.enable-lifecycle is deliberately NOT set - it exposes
+      # unauthenticated POST /-/reload and /-/quit on the compose network.
+      # Reload the config instead with: docker compose kill -s HUP prometheus
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
       interval: 30s
       timeout: 5s
       retries: 2
       start_period: 15s
+    # M-09: /data is a volume (stays writable), the rest of the rootfs is
+    # read-only; /tmp is scratch space.
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: 128
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/targets:/etc/prometheus/targets:ro
@@ -228,6 +255,17 @@ services:
       timeout: 5s
       retries: 2
       start_period: 20s
+    # M-09: /var/lib/grafana is a volume (stays writable), /tmp is scratch.
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    # 512, not 128: the server plus its gpx plugin processes legitimately
+    # run ~125 threads/processes, and a full pids cgroup made runc exec
+    # (healthcheck, plugin start) fail with "procReady not received".
+    pids_limit: 512
     logging: *default-logging
 
 volumes:
