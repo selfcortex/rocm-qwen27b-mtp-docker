@@ -4,4 +4,5 @@ secrets/
 *.gguf
 ОТЧЁТ.md
 мониторинг.txt
+collect_debug.sh
 

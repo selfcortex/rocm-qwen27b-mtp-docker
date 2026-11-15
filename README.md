@@ -29,6 +29,21 @@ Tested on **Qwen 3.8 27B UD-IQ4_XS** under full real-world load (**20,000+ token
 
 ---
 
+## 🧠 Model
+
+The model files are **not** in this repository. Place them anywhere on the host, set their absolute paths in `.env`, and verify them once:
+
+| File | Role | SHA-256 |
+| :--- | :--- | :--- |
+| `Qwen3.8-27B-UD-IQ4_XS.gguf` (~13.2 GiB) | Qwen 3.8 27B, UD-IQ4_XS quantization | `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199` |
+| `mmproj-model-bf16.gguf` (~888 MiB) | vision projector (BF16, kept in RAM) | `c9a09064683620bea3d3bfed5d4462e1a97a7d2fff7e5045d6862a0a85eeb5b5` |
+
+```bash
+sha256sum /path/to/Qwen3.8-27B-UD-IQ4_XS.gguf   # must match the table above
+```
+
+The container mounts only these two files read-only — nothing else from the host disk is visible to it. Check the license of your model source; this repo makes no claim about model licensing.
+
 ## 🛠️ Key Architectural Decisions
 
 1. **RDNA2 Hardware Passthrough:**
@@ -64,7 +79,8 @@ Host (CachyOS)
 ```bash
 # 1. Configure (one time)
 make init          # copies .env.example -> .env and generates secrets/llama_api_key
-# edit .env: LAN_IP, GRAFANA_PASSWORD, VIDEO_GID/RENDER_GID (getent group video render)
+# edit .env: LAN_IP, GRAFANA_PASSWORD, MODEL_FILE, MMPROJ_FILE,
+#            VIDEO_GID/RENDER_GID (getent group video render)
 
 # 2. Start monitoring (one time; survives reboots via restart: unless-stopped)
 docker compose up -d
@@ -95,9 +111,10 @@ OpenAI-compatible clients need the key too (`api_key: "$KEY"` in the SDK, or the
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `LAN_IP` | — | LAN address the Grafana port is bound to (not `0.0.0.0`) |
+| `LAN_IP` | — (required) | LAN address the Grafana port is bound to (not `0.0.0.0`) |
 | `GRAFANA_USER` / `GRAFANA_PASSWORD` | `admin` / required | Grafana admin credentials |
-| `VIDEO_GID` / `RENDER_GID` | `983` / `987` | Host group IDs for `/dev/dri` / `/dev/kfd` |
+| `MODEL_FILE` / `MMPROJ_FILE` | — (required) | Absolute host paths to the model and vision projector (see [Model](#-model)) |
+| `VIDEO_GID` / `RENDER_GID` | — (required) | Host group IDs for `/dev/dri` / `/dev/kfd` (`getent group video render`) |
 | `HSA_OVERRIDE_GFX_VERSION` | `10.3.0` | ROCm gfx override (default = RX 6800 XT / gfx1030) |
 
 ## 🔐 Security

@@ -34,8 +34,8 @@ services:
       - /dev/kfd
       - /dev/dri
     group_add:
-      - "${VIDEO_GID:-983}"
-      - "${RENDER_GID:-987}"
+      - "${VIDEO_GID:?set VIDEO_GID in .env (getent group video)}"
+      - "${RENDER_GID:?set RENDER_GID in .env (getent group render)}"
     ipc: host
     security_opt:
       - seccomp:unconfined
@@ -46,8 +46,10 @@ services:
       - LLAMA_ARG_MMPROJ_OFFLOAD=false
       - LLAMA_ARG_REASONING_EFFORT=medium
     volumes:
-      - /mnt/GameLinux/models/HauhauCS/27b_iq4s:/models:ro
-      - /mnt/AI:/models_nvme:ro
+      # Single-file read-only mounts: the container sees only the two model
+      # files, not the rest of the host filesystem. Paths come from .env.
+      - "${MODEL_FILE:?set MODEL_FILE in .env}:/model/model.gguf:ro"
+      - "${MMPROJ_FILE:?set MMPROJ_FILE in .env}:/model/mmproj.gguf:ro"
       - ./secrets/llama_api_key:/run/secrets/llama_api_key:ro
     command:
       - --host
@@ -65,16 +67,16 @@ services:
       - --alias
       - "qwen-27b"
       - -m
-      - "/models_nvme/Qwen3.8-27B-UD-IQ4_XS.gguf"
+      - "/model/model.gguf"
       - --mmproj
-      - "/models/mmproj-model-bf16.gguf"
+      - "/model/mmproj.gguf"
       - --no-mmproj-offload
       - -ngl
       - "999"
       - -np
       - "1"
       - -c
-      - "68000"
+      - "81920"
       - -t
       - "6"
       - -b
@@ -84,7 +86,7 @@ services:
       - --flash-attn
       - "on"
       - -ctk
-      - "q8_0"
+      - "q4_0"
       - -ctv
       - "q4_0"
       - --spec-type
@@ -98,7 +100,7 @@ services:
       - --reasoning-format
       - "deepseek"
       - --reasoning-effort
-      - "xhigh"
+      - "medium"
       - --no-reasoning-preserve
     logging: *default-logging
 
@@ -180,7 +182,7 @@ services:
     container_name: llama-grafana
     restart: unless-stopped
     ports:
-      - "${LAN_IP:-192.168.1.215}:3000:3000"
+      - "${LAN_IP:?set LAN_IP in .env}:3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD in .env}
