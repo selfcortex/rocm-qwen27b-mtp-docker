@@ -25,6 +25,8 @@ services:
   # llama.cpp server - ROCm, host network, managed by ./run.sh (profile "llama")
   # ---------------------------------------------------------------------------
   llama-server:
+    # llama.cpp v1.0.0-dev, build 12375 (commit 9d25e0014), ROCm 7.2.1.
+    # Pinned by digest so the serving/metrics behavior stays reproducible.
     image: ghcr.io/ggml-org/llama.cpp@sha256:6da04cde049c6410fd93a45810dc2072ea8c8041ad9fc091f48e3064e322fb83
     container_name: llama-qwen27b
     restart: "no"
@@ -109,7 +111,9 @@ services:
   # Read-only mounts; needs /sys to see /sys/class/drm/card*/device
   # ---------------------------------------------------------------------------
   node-exporter:
-    image: prom/node-exporter:v1.12.1
+    # Pinned by digest (verified 2026-11-15): a mutable tag would silently
+    # change collector behavior / metric names under the dashboards.
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
     container_name: llama-node-exporter
     restart: unless-stopped
     pid: host
@@ -135,7 +139,7 @@ services:
   # Exits immediately; a no-op on subsequent starts.
   # ---------------------------------------------------------------------------
   prometheus-init:
-    image: prom/prometheus:v3.16.0
+    image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
     container_name: llama-prometheus-init
     user: root
     entrypoint: ["sh", "-c", "chown -R 65534:65534 /data"]
@@ -151,7 +155,7 @@ services:
   # host on the host machine, so it is reached via the host's bridge IP.
   # ---------------------------------------------------------------------------
   prometheus:
-    image: prom/prometheus:v3.16.0
+    image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
     container_name: llama-prometheus
     restart: unless-stopped
     depends_on:
@@ -178,7 +182,7 @@ services:
   # Published on the LAN interface only (LAN_IP in .env), not 0.0.0.0.
   # ---------------------------------------------------------------------------
   grafana:
-    image: grafana/grafana:13.3.1
+    image: grafana/grafana:13.3.1@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf
     container_name: llama-grafana
     restart: unless-stopped
     ports:

@@ -27,7 +27,7 @@ ps: ## Show monitoring status
 
 check: ## Validate compose + prometheus configs
 	$(COMPOSE) config -q
-	docker run --rm --entrypoint promtool -v $(PWD)/prometheus:/cfg:ro -v $(PWD)/secrets/llama_api_key:/etc/prometheus/keys/llama_api_key:ro prom/prometheus:v3.16.0 check config /cfg/prometheus.yml
+	docker run --rm --entrypoint promtool -v $(PWD)/prometheus:/cfg:ro -v $(PWD)/secrets/llama_api_key:/etc/prometheus/keys/llama_api_key:ro prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06 check config /cfg/prometheus.yml
 	@echo "Configs OK"
 
 session: ## Start an inference session (./run.sh: VRAM tuning + llama-server + live logs)
