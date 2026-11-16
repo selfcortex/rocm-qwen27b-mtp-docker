@@ -159,6 +159,9 @@ cleanup() {
         echo "[*] Restoring desktop ..."
         sudo systemctl isolate graphical.target
     fi
+
+    # Leave the terminal in a usable state no matter how the session ended.
+    stty sane 2>/dev/null || true
     exit "$rc"
 }
 # Single EXIT trap: INT/TERM only translate to an exit code, so cleanup
@@ -166,6 +169,10 @@ cleanup() {
 trap 'exit 130' INT
 trap 'exit 143' TERM
 trap cleanup EXIT
+
+# Self-heal the terminal: a TUI killed on this tty (nvtop, qwen, opencode,
+# ...) leaves it in raw mode - no echo, and Ctrl+C dead for the whole session.
+stty sane 2>/dev/null || true
 
 echo "[1/4] Freeing VRAM: isolating multi-user.target (stopping desktop)..."
 if [[ "$ISOLATE_DESKTOP" == "1" ]]; then
