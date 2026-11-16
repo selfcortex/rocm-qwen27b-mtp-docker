@@ -92,6 +92,31 @@ save_loop() {
     done
 }
 
+# Terminal watchdog: whatever runs on this tty (a TUI killed mid-run, a
+# crashed pager) can leave it raw - no echo, and Ctrl+C dead for the whole
+# session. Re-heal it every 5 s while the session is active, so Ctrl+C
+# always works no matter what. Fires only when the tty is actually broken,
+# and dumps forensics (processes on the tty at the moment of healing) so a
+# repeat can be attributed.
+tty_watchdog() {
+    local lost ts
+    while :; do
+        sleep 5
+        lost="$(stty -a 2>/dev/null | grep -oE '\-(isig|icanon|echo|opost)\b' | sort -u | tr -cd 'a-z ' | tr -s ' ')"
+        [[ -n "${lost//[[:space:]]/}" ]] || continue
+        stty sane 2>/dev/null || true
+        ts="$(date +%H%M%S)"
+        mkdir -p "$LOG_DIR"
+        {
+            echo "healed $(date '+%F %T') lost-flags: $lost"
+            echo "--- processes with a tty at healing time:"
+            ps -eo pid,ppid,tty,stat,etime,cmd | awk 'NR==1 || $3 ~ /^tty/'
+        } > "$LOG_DIR/tty-heal-$ts.txt" 2>&1 || true
+        echo "[!] Terminal was left raw (lost: $lost) - healed with 'stty sane'."
+        echo "    Forensics: $LOG_DIR/tty-heal-$ts.txt"
+    done
+}
+
 # Final snapshot before the container stops. The slot must be idle: if the
 # model is still generating, stop the generation in the client to speed this up.
 save_final() {
@@ -121,6 +146,7 @@ prev_governor="$(cat "$GOV_PATH" 2>/dev/null || true)"
 started=0
 RESTORE_PID=""
 SAVE_PID=""
+TTY_PID=""
 
 cleanup() {
     local rc=$?
@@ -128,6 +154,7 @@ cleanup() {
     kill "$SUDO_KEEPALIVE" 2>/dev/null || true
     [[ -n "$RESTORE_PID" ]] && kill "$RESTORE_PID" 2>/dev/null || true
     [[ -n "$SAVE_PID" ]] && kill "$SAVE_PID" 2>/dev/null || true
+    [[ -n "$TTY_PID" ]] && kill "$TTY_PID" 2>/dev/null || true
 
     if [[ $started -eq 1 ]]; then
         save_final
@@ -190,6 +217,7 @@ sudo cpupower frequency-set -g performance >/dev/null 2>&1 || true
 # themselves, and the restore must land before the first client request can.
 restore_agent & RESTORE_PID=$!
 save_loop & SAVE_PID=$!
+tty_watchdog & TTY_PID=$!
 
 echo "[3/4] Launching $SERVICE (blocks until the model is loaded)..."
 $COMPOSE up -d --wait "$SERVICE"
