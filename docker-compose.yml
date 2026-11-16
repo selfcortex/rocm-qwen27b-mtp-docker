@@ -53,6 +53,10 @@ services:
       - "${MODEL_FILE:?set MODEL_FILE in .env}:/model/model.gguf:ro"
       - "${MMPROJ_FILE:?set MMPROJ_FILE in .env}:/model/mmproj.gguf:ro"
       - ./secrets/llama_api_key:/run/secrets/llama_api_key:ro
+      # Writable dir for KV snapshots (POST /slots/0?action=save|restore).
+      # run.sh restores the snapshot at start and re-saves it before stop, so a
+      # restart does not re-prefill the whole 50-80k conversation (~63 B/token).
+      - "${LLAMA_CACHE_DIR:-/mnt/AI/cache}:/cache"
     command:
       - --host
       - "0.0.0.0"
@@ -63,9 +67,13 @@ services:
       # (verified in the pinned build's source). File is created by `make init`.
       - --api-key-file
       - /run/secrets/llama_api_key
-      # The server serves its own UI same-origin; no cross-origin clients.
+      # Hybrid/WebView mobile apps serve their UI from origin "http://localhost",
+      # which is cross-origin to this host; it must be explicitly allowed or the
+      # browser's CORS preflight is rejected and the real POST is never sent.
       - --cors-origins
-      - localhost
+      - http://localhost
+      - --slot-save-path
+      - /cache
       - --alias
       - "qwen-27b"
       - -m
@@ -78,7 +86,7 @@ services:
       - -np
       - "1"
       - -c
-      - "81920"
+      - "81000"
       - -t
       - "6"
       - -b
