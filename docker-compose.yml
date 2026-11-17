@@ -76,6 +76,11 @@ services:
       - /cache
       - --alias
       - "qwen-27b"
+      - --alias
+      - "qwen-27b"
+      - --jinja
+      - -m
+      - "/model/model.gguf"
       - -m
       - "/model/model.gguf"
       - --mmproj
@@ -110,8 +115,13 @@ services:
       - --reasoning-format
       - "deepseek"
       - --reasoning-effort
-      - "medium"
+      - "xhigh"
       - --no-reasoning-preserve
+      - --alias
+      - "qwen-27b"
+      - --jinja
+      - -m
+      - "/model/model.gguf"
     # /health is public (no key needed) - see C-01. start_period covers
     # the model load; the container is NOT killed on failure (restart: "no"),
     # the status is for `up --wait` and `docker compose ps` to use.

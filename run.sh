@@ -30,6 +30,13 @@ SAVE_MIN_TOKENS="${SAVE_MIN_TOKENS:-2048}"
 SAVE_INTERVAL="${SAVE_INTERVAL:-60}"
 API_KEY="$(cat "$PWD/secrets/llama_api_key" 2>/dev/null || true)"
 
+TTY_DEVICE="$(tty 2>/dev/null || true)"
+
+if [[ -z "$TTY_DEVICE" || "$TTY_DEVICE" == "not a tty" ]]; then
+    echo "error: script must be launched from a TTY." >&2
+    exit 1
+fi
+
 # api METHOD PATH [JSON-BODY] [MAX-TIME]
 api() {
     local method="$1" path="$2" body="${3:-}" t="${4:-30}"
@@ -100,19 +107,34 @@ save_loop() {
 # repeat can be attributed.
 tty_watchdog() {
     local lost ts
+
     while :; do
-        sleep 5
-        lost="$(stty -a 2>/dev/null | grep -oE '\-(isig|icanon|echo|opost)\b' | sort -u | tr -cd 'a-z ' | tr -s ' ')"
+        sleep 2
+
+        lost="$(
+            stty -F "$TTY_DEVICE" -a 2>/dev/null |
+            grep -oE -- '-(isig|icanon|echo|opost|onlcr)\b' |
+            sort -u |
+            tr -cd 'a-z ' |
+            tr -s ' '
+        )"
+
         [[ -n "${lost//[[:space:]]/}" ]] || continue
-        stty sane 2>/dev/null || true
+
+        stty -F "$TTY_DEVICE" sane 2>/dev/null || true
+
         ts="$(date +%H%M%S)"
         mkdir -p "$LOG_DIR"
+
         {
             echo "healed $(date '+%F %T') lost-flags: $lost"
             echo "--- processes with a tty at healing time:"
-            ps -eo pid,ppid,tty,stat,etime,cmd | awk 'NR==1 || $3 ~ /^tty/'
+            ps -eo pid,ppid,tty,stat,etime,cmd |
+                awk 'NR==1 || $3 ~ /^(tty|pts)/'
         } > "$LOG_DIR/tty-heal-$ts.txt" 2>&1 || true
-        echo "[!] Terminal was left raw (lost: $lost) - healed with 'stty sane'."
+
+        echo "[!] Terminal was left in broken mode (lost: $lost)."
+        echo "    Restored with stty sane."
         echo "    Forensics: $LOG_DIR/tty-heal-$ts.txt"
     done
 }
@@ -188,7 +210,7 @@ cleanup() {
     fi
 
     # Leave the terminal in a usable state no matter how the session ended.
-    stty sane 2>/dev/null || true
+    stty -F "$TTY_DEVICE" sane 2>/dev/null || true
     exit "$rc"
 }
 # Single EXIT trap: INT/TERM only translate to an exit code, so cleanup
