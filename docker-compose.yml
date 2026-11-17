@@ -10,7 +10,8 @@
 #     #      docker compose --profile llama stop llama-server
 #
 #   Secrets live in .env (gitignored). Copy .env.example and fill it in.
-#   Published ports: only Grafana, bound to LAN_IP (not 0.0.0.0).
+#   Published ports: only Grafana and the llama API, both bound to LAN_IP
+#   (never 0.0.0.0); the llama API is additionally on 127.0.0.1 for run.sh.
 #   Prometheus and node-exporter are internal to the compose network.
 # ============================================================================
 
@@ -31,7 +32,12 @@ services:
     container_name: llama-qwen27b
     restart: "no"
     profiles: ["llama"]
-    network_mode: host
+    # Bridge network: the API is published to loopback only (run.sh agents)
+    # and to the LAN IP (phone client). network_mode: host exposed it on
+    # every host interface; GPU access (devices, ipc: host) is unaffected.
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "${LAN_IP:?set LAN_IP in .env}:8080:8080"
     devices:
       - /dev/kfd
       - /dev/dri
@@ -115,7 +121,7 @@ services:
       - --reasoning-format
       - "deepseek"
       - --reasoning-effort
-      - "xhigh"
+      - "medium"
       - --no-reasoning-preserve
       - --alias
       - "qwen-27b"
@@ -198,8 +204,8 @@ services:
   # ---------------------------------------------------------------------------
   # Prometheus - scrapes node-exporter + llama-server, 2 days retention.
   # Internal only: no published ports (Grafana reaches it on the compose net).
-  # host.docker.internal -> host-gateway: llama-server runs with network_mode
-  # host on the host machine, so it is reached via the host's bridge IP.
+  # llama-server shares the compose network, so it is reached by service
+  # name (targets/llama.yml, file_sd refresh every 30 s).
   # ---------------------------------------------------------------------------
   prometheus:
     image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
