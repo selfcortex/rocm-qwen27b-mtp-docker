@@ -5,16 +5,29 @@
 # logs/, restores the CPU governor and the desktop, and exits with the
 # real status code.
 #
-# Environment:
+# Environment (exported variables win; otherwise .env is sourced - the same
+# file compose reads, so the KV mount and the snapshot agents can't drift):
 #   ISOLATE_DESKTOP=0   keep the desktop running (refused in a GUI session
 #                       unless set) - for testing without tearing down X
 #   DROP_CACHES=1       drop page cache before start (off by default: with
 #                       mmap'd models it only slows the next load)
+#   LLAMA_URL, LLAMA_CACHE_DIR, LLAMA_CACHE_FILE, SAVE_MIN_TOKENS,
+#   SAVE_INTERVAL       KV snapshot behaviour (defaults below)
 set -euo pipefail
 
 COMPOSE="docker compose --profile llama"
 SERVICE="llama-server"
 LOG_DIR="$PWD/logs"
+
+# Single source of truth: honor the same .env that compose reads, so
+# LLAMA_CACHE_DIR (and friends) cannot drift between the mount and the agents.
+# Real environment variables win (exported before the source).
+if [[ -f .env ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source ./.env
+    set +a
+fi
 
 ISOLATE_DESKTOP="${ISOLATE_DESKTOP:-1}"
 DROP_CACHES="${DROP_CACHES:-0}"

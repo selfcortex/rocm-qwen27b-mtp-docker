@@ -19,7 +19,7 @@ scrape_configs:
         labels:
           instance: host
 
-  # llama-server runs with network_mode: host on the host machine.
+  # llama-server shares the compose network, so it is reached by service name.
   # file_sd keeps the target in a separate file, so switching between
   # "server in compose" and "server on host" is a one-line change:
   #   in compose:  targets: ["llama-server:8080"]

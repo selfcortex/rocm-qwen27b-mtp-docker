@@ -60,8 +60,9 @@ services:
       - "${MMPROJ_FILE:?set MMPROJ_FILE in .env}:/model/mmproj.gguf:ro"
       - ./secrets/llama_api_key:/run/secrets/llama_api_key:ro
       # Writable dir for KV snapshots (POST /slots/0?action=save|restore).
-      # run.sh restores the snapshot at start and re-saves it before stop, so a
-      # restart does not re-prefill the whole 50-80k conversation (~63 B/token).
+      # run.sh restores the snapshot at start and re-saves it while the slot is
+      # idle, so a restart does not re-prefill the whole 50-80k conversation
+      # (~18 KB/token at the q4_0 KV quant; see the README).
       - "${LLAMA_CACHE_DIR:-/mnt/AI/cache}:/cache"
     command:
       - --host
@@ -82,11 +83,7 @@ services:
       - /cache
       - --alias
       - "qwen-27b"
-      - --alias
-      - "qwen-27b"
       - --jinja
-      - -m
-      - "/model/model.gguf"
       - -m
       - "/model/model.gguf"
       - --mmproj
@@ -123,12 +120,7 @@ services:
       - --reasoning-effort
       - "medium"
       - --no-reasoning-preserve
-      - --alias
-      - "qwen-27b"
-      - --jinja
-      - -m
-      - "/model/model.gguf"
-    # /health is public (no key needed) - see C-01. start_period covers
+    # /health is public (no key needed). start_period covers
     # the model load; the container is NOT killed on failure (restart: "no"),
     # the status is for `up --wait` and `docker compose ps` to use.
     healthcheck:
@@ -158,7 +150,7 @@ services:
       # disabled by default in node-exporter 1.x -> enable explicitly.
       # Temperature / power / fan come from the "hwmon" collector (default on).
       - --collector.drm
-      # M-02: /proc/net is per network namespace - read from this container
+      # /proc/net is per network namespace - read from this container
       # it describes the bridge eth0, not the host NICs, so the network
       # collectors would report wrong data. Host network metrics are
       # intentionally not collected (see README).
@@ -171,7 +163,7 @@ services:
       timeout: 5s
       retries: 2
       start_period: 15s
-    # M-09: the collectors only read /host/{,proc,sys}, so a read-only
+    # The collectors only read /host/{,proc,sys}, so a read-only
     # rootfs without capabilities is sufficient.
     cap_drop: [ALL]
     security_opt:
@@ -218,9 +210,9 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/data
       - --storage.tsdb.retention.time=2d
-      # L-10: disk guard on top of the time-based retention.
+      # Disk guard on top of the time-based retention.
       - --storage.tsdb.retention.size=2GB
-      # M-04: --web.enable-lifecycle is deliberately NOT set - it exposes
+      # --web.enable-lifecycle is deliberately NOT set - it exposes
       # unauthenticated POST /-/reload and /-/quit on the compose network.
       # Reload the config instead with: docker compose kill -s HUP prometheus
     healthcheck:
@@ -229,7 +221,7 @@ services:
       timeout: 5s
       retries: 2
       start_period: 15s
-    # M-09: /data is a volume (stays writable), the rest of the rootfs is
+    # /data is a volume (stays writable), the rest of the rootfs is
     # read-only; /tmp is scratch space.
     cap_drop: [ALL]
     security_opt:
@@ -245,8 +237,6 @@ services:
       # Same key as llama-server: /metrics requires it (see prometheus.yml).
       - ./secrets/llama_api_key:/etc/prometheus/keys/llama_api_key:ro
       - prom-data:/data
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     logging: *default-logging
 
   # ---------------------------------------------------------------------------
@@ -264,7 +254,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD in .env}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=false
-      # M-06: no telemetry / phone-home.
+      # No telemetry / phone-home.
       - GF_ANALYTICS_REPORTING_ENABLED=false
       - GF_ANALYTICS_CHECK_FOR_UPDATES=false
       - GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES=false
@@ -284,7 +274,7 @@ services:
       timeout: 5s
       retries: 2
       start_period: 20s
-    # M-09: /var/lib/grafana is a volume (stays writable), /tmp is scratch.
+    # /var/lib/grafana is a volume (stays writable), /tmp is scratch.
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
