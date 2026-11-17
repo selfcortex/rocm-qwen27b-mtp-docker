@@ -23,7 +23,7 @@ x-logging: &default-logging
 
 services:
   # ---------------------------------------------------------------------------
-  # llama.cpp server - ROCm, host network, managed by ./run.sh (profile "llama")
+  # llama.cpp server - ROCm, bridge network (loopback + LAN only), managed by ./run.sh (profile "llama")
   # ---------------------------------------------------------------------------
   llama-server:
     # llama.cpp v1.0.0-dev, build 12375 (commit 9d25e0014), ROCm 7.2.1.

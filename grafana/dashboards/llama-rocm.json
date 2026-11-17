@@ -4,7 +4,7 @@
   "tags": ["llama.cpp", "rocm", "amd", "inference"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "graphTooltip": 1,
   "refresh": "10s",
@@ -44,7 +44,7 @@
       }, "overrides": [] },
       "options": { "colorMode": "background", "graphMode": "none" },
       "targets": [
-        { "refId": "A", "expr": "up{job=\"llama\"}", "legendFormat": "" }
+        { "refId": "A", "expr": "up{job=\"llama\", instance=\"llama-server:8080\"}", "legendFormat": "" }
       ]
     },
     {
@@ -60,7 +60,7 @@
       }, "overrides": [] },
       "options": { "colorMode": "background", "graphMode": "none" },
       "targets": [
-        { "refId": "A", "expr": "sum(up) == count(up)", "legendFormat": "" }
+        { "refId": "A", "expr": "min(up)", "legendFormat": "" }
       ]
     },
     {
@@ -71,12 +71,12 @@
         "unit": "short",
         "thresholds": { "mode": "absolute", "steps": [
           { "color": "green", "value": null },
-          { "color": "yellow", "value": 50000 },
-          { "color": "red", "value": 65000 } ] }
+          { "color": "yellow", "value": 60000 },
+          { "color": "red", "value": 75000 } ] }
       }, "overrides": [] },
       "options": { "colorMode": "background", "graphMode": "none" },
       "targets": [
-        { "refId": "A", "expr": "llamacpp:n_tokens_max", "legendFormat": "" }
+        { "refId": "A", "expr": "llamacpp:n_tokens_max{instance=\"llama-server:8080\"}", "legendFormat": "" }
       ]
     },
     {
@@ -91,8 +91,8 @@
       }, "overrides": [] },
       "options": { "colorMode": "background", "graphMode": "none" },
       "targets": [
-        { "refId": "A", "expr": "llamacpp:requests_processing", "legendFormat": "processing" },
-        { "refId": "B", "expr": "llamacpp:requests_deferred", "legendFormat": "deferred" }
+        { "refId": "A", "expr": "llamacpp:requests_processing{instance=\"llama-server:8080\"}", "legendFormat": "processing" },
+        { "refId": "B", "expr": "llamacpp:requests_deferred{instance=\"llama-server:8080\"}", "legendFormat": "deferred" }
       ]
     },
     {
@@ -156,9 +156,8 @@
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
         { "refId": "A", "expr": "node_hwmon_temp_celsius{chip=~\"0000:.*\", sensor=\"temp1\"}", "legendFormat": "GPU (edge)" },
-        { "refId": "B", "expr": "node_hwmon_temp_celsius{chip=~\"0000:.*\", sensor=\"temp2\"}", "legendFormat": "VRAM (mem)" },
-        { "refId": "C", "expr": "node_hwmon_temp_celsius{chip=~\"0000:.*\", sensor=\"temp3\"}", "legendFormat": "Hotspot" },
-        { "refId": "D", "expr": "node_hwmon_temp_crit_celsius{chip=~\"0000:.*\"}", "legendFormat": "crit {{sensor}}" }
+        { "refId": "B", "expr": "node_hwmon_temp_celsius{chip=~\"0000:.*\", sensor=\"temp2\"}", "legendFormat": "Hotspot (junction)" },
+        { "refId": "C", "expr": "node_hwmon_temp_celsius{chip=~\"0000:.*\", sensor=\"temp3\"}", "legendFormat": "VRAM (mem)" }
       ]
     },
     {
@@ -168,14 +167,12 @@
       "fieldConfig": { "defaults": { "unit": "watt" }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
-        { "refId": "A", "expr": "node_hwmon_power_average_watt{chip=~\"0000:.*\"}", "legendFormat": "average" },
-        { "refId": "B", "expr": "node_hwmon_power_cap_watt{chip=~\"0000:.*\"}", "legendFormat": "cap" },
-        { "refId": "C", "expr": "node_hwmon_power_cap_max_watt{chip=~\"0000:.*\"}", "legendFormat": "cap max" }
+        { "refId": "A", "expr": "node_hwmon_power_average_watt{chip=~\"0000:.*\"}", "legendFormat": "average" }
       ]
     },
     {
       "type": "timeseries", "title": "Fan (RPM)", "id": 15,
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 20 },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 20 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "rpm" }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
@@ -185,24 +182,13 @@
     },
     {
       "type": "timeseries", "title": "Clocks (MHz)", "id": 16,
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 20 },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 20 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "mhz" }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
         { "refId": "A", "expr": "node_hwmon_freq_freq_mhz{chip=~\"0000:.*\", sensor=\"sclk\"}", "legendFormat": "core (sclk)" },
         { "refId": "B", "expr": "node_hwmon_freq_freq_mhz{chip=~\"0000:.*\", sensor=\"mclk\"}", "legendFormat": "memory (mclk)" }
-      ]
-    },
-    {
-      "type": "timeseries", "title": "GPU busy % (detailed)", "id": 17,
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 20 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-      "targets": [
-        { "refId": "A", "expr": "avg_over_time(node_drm_gpu_busy_percent{card=\"$card\"}[1m])", "legendFormat": "avg 1m" },
-        { "refId": "B", "expr": "max_over_time(node_drm_gpu_busy_percent{card=\"$card\"}[1m])", "legendFormat": "max 1m" }
       ]
     },
     {
@@ -213,20 +199,20 @@
       "type": "stat", "title": "Generation tok/s (active, 5m)", "id": 20,
       "gridPos": { "h": 4, "w": 8, "x": 0, "y": 28 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "cps", "decimals": 1 }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "string:tok/s", "decimals": 1 }, "overrides": [] },
       "options": { "colorMode": "background", "graphMode": "area" },
       "targets": [
-        { "refId": "A", "expr": "rate(llamacpp:tokens_predicted_total[5m]) / rate(llamacpp:tokens_predicted_seconds_total[5m])", "legendFormat": "" }
+        { "refId": "A", "expr": "rate(llamacpp:tokens_predicted_total{instance=\"llama-server:8080\"}[5m]) / rate(llamacpp:tokens_predicted_seconds_total{instance=\"llama-server:8080\"}[5m])", "legendFormat": "" }
       ]
     },
     {
       "type": "stat", "title": "Prompt tok/s (active, 5m)", "id": 21,
       "gridPos": { "h": 4, "w": 8, "x": 8, "y": 28 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "cps", "decimals": 1 }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "string:tok/s", "decimals": 1 }, "overrides": [] },
       "options": { "colorMode": "background", "graphMode": "area" },
       "targets": [
-        { "refId": "A", "expr": "rate(llamacpp:prompt_tokens_total[5m]) / rate(llamacpp:prompt_seconds_total[5m])", "legendFormat": "" }
+        { "refId": "A", "expr": "rate(llamacpp:prompt_tokens_total{instance=\"llama-server:8080\"}[5m]) / rate(llamacpp:prompt_seconds_total{instance=\"llama-server:8080\"}[5m])", "legendFormat": "" }
       ]
     },
     {
@@ -242,29 +228,29 @@
       }, "overrides": [] },
       "options": { "colorMode": "background", "graphMode": "area" },
       "targets": [
-        { "refId": "A", "expr": "100 * rate(llamacpp:spec_decode_num_accepted_tokens_total[5m]) / rate(llamacpp:spec_decode_num_draft_tokens_total[5m])", "legendFormat": "" }
+        { "refId": "A", "expr": "100 * rate(llamacpp:spec_decode_num_accepted_tokens_total{instance=\"llama-server:8080\"}[5m]) / rate(llamacpp:spec_decode_num_draft_tokens_total{instance=\"llama-server:8080\"}[5m])", "legendFormat": "" }
       ]
     },
     {
       "type": "timeseries", "title": "Generation tok/s (active time)", "id": 23,
       "gridPos": { "h": 7, "w": 12, "x": 0, "y": 32 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "cps", "decimals": 1 }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "string:tok/s", "decimals": 1 }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
-        { "refId": "A", "expr": "rate(llamacpp:tokens_predicted_total[5m]) / rate(llamacpp:tokens_predicted_seconds_total[5m])", "legendFormat": "5m (active time)" },
-        { "refId": "B", "expr": "rate(llamacpp:tokens_predicted_total[1m]) / rate(llamacpp:tokens_predicted_seconds_total[1m])", "legendFormat": "1m (active time)" }
+        { "refId": "A", "expr": "rate(llamacpp:tokens_predicted_total{instance=\"llama-server:8080\"}[5m]) / rate(llamacpp:tokens_predicted_seconds_total{instance=\"llama-server:8080\"}[5m])", "legendFormat": "5m" },
+        { "refId": "B", "expr": "rate(llamacpp:tokens_predicted_total{instance=\"llama-server:8080\"}[1m]) / rate(llamacpp:tokens_predicted_seconds_total{instance=\"llama-server:8080\"}[1m])", "legendFormat": "1m" }
       ]
     },
     {
       "type": "timeseries", "title": "Prompt tok/s (active time)", "id": 24,
       "gridPos": { "h": 7, "w": 12, "x": 12, "y": 32 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "cps", "decimals": 1 }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "string:tok/s", "decimals": 1 }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
-        { "refId": "A", "expr": "rate(llamacpp:prompt_tokens_total[5m]) / rate(llamacpp:prompt_seconds_total[5m])", "legendFormat": "5m (active time)" },
-        { "refId": "B", "expr": "rate(llamacpp:prompt_tokens_total[1m]) / rate(llamacpp:prompt_seconds_total[1m])", "legendFormat": "1m (active time)" }
+        { "refId": "A", "expr": "rate(llamacpp:prompt_tokens_total{instance=\"llama-server:8080\"}[5m]) / rate(llamacpp:prompt_seconds_total{instance=\"llama-server:8080\"}[5m])", "legendFormat": "5m" },
+        { "refId": "B", "expr": "rate(llamacpp:prompt_tokens_total{instance=\"llama-server:8080\"}[1m]) / rate(llamacpp:prompt_seconds_total{instance=\"llama-server:8080\"}[1m])", "legendFormat": "1m" }
       ]
     },
     {
@@ -274,41 +260,29 @@
       "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
-        { "refId": "A", "expr": "llamacpp:n_tokens_max", "legendFormat": "peak used" },
-        { "refId": "B", "expr": "65000", "legendFormat": "max (-c)" }
+        { "refId": "A", "expr": "llamacpp:n_tokens_max{instance=\"llama-server:8080\"}", "legendFormat": "peak used" },
+        { "refId": "B", "expr": "81152", "legendFormat": "max (n_ctx)" }
       ]
     },
     {
-      "type": "timeseries", "title": "Requests / decode activity", "id": 26,
+      "type": "timeseries", "title": "Requests (active time)", "id": 26,
       "gridPos": { "h": 7, "w": 12, "x": 12, "y": 39 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
-        { "refId": "A", "expr": "llamacpp:requests_processing", "legendFormat": "processing" },
-        { "refId": "B", "expr": "llamacpp:requests_deferred", "legendFormat": "deferred" },
-        { "refId": "C", "expr": "rate(llamacpp:n_decode_total[5m])", "legendFormat": "decode calls/s" }
+        { "refId": "A", "expr": "llamacpp:requests_processing{instance=\"llama-server:8080\"}", "legendFormat": "processing" },
+        { "refId": "B", "expr": "llamacpp:requests_deferred{instance=\"llama-server:8080\"}", "legendFormat": "deferred" }
       ]
     },
     {
       "type": "timeseries", "title": "MTP accepted tokens per position (cumulative)", "id": 27,
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 46 },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 46 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
-        { "refId": "A", "expr": "llamacpp:spec_decode_num_accepted_tokens_per_pos_total", "legendFormat": "position {{position}}" }
-      ]
-    },
-    {
-      "type": "timeseries", "title": "Speculative decoding MTP (rate 5m)", "id": 28,
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 46 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "cps" }, "overrides": [] },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        { "refId": "A", "expr": "rate(llamacpp:spec_decode_num_draft_tokens_total[5m])", "legendFormat": "draft" },
-        { "refId": "B", "expr": "rate(llamacpp:spec_decode_num_accepted_tokens_total[5m])", "legendFormat": "accepted" }
+        { "refId": "A", "expr": "llamacpp:spec_decode_num_accepted_tokens_per_pos_total{instance=\"llama-server:8080\"}", "legendFormat": "position {{position}}" }
       ]
     },
     {
@@ -322,7 +296,7 @@
       "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
       "targets": [
-        { "refId": "A", "expr": "100 - (avg(rate(node_cpu_seconds_total{job=\"node\"}[5m])) by (instance) * 100)", "legendFormat": "CPU" }
+        { "refId": "A", "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)", "legendFormat": "CPU" }
       ]
     },
     {
