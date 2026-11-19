@@ -120,6 +120,30 @@ services:
       - --reasoning-effort
       - "medium"
       - --no-reasoning-preserve
+            # --- Samplers ---
+      - "--temp"
+      - "1"
+      - "--min-p"
+      - "0.07"
+      - "--top-p"
+      - "0.95"
+#      - "--dry-multiplier"
+#      - "0.8"
+#      - "--dry-base"
+#      - "1.75"
+#     - "--dry-allowed-length"
+#     - "2"
+#      - "--dry-penalty-last-n"
+#      - "2048"
+#     - "--dry-sequence-breaker"
+ ##     - "\n"
+ #     - "--dry-sequence-breaker"
+ #     - ":"
+  #    - "--dry-sequence-breaker"
+   #   - "*"
+    #  - "\""
+     # - "--dry-sequence-breaker"
+     # - "—"
     # /health is public (no key needed). start_period covers
     # the model load; the container is NOT killed on failure (restart: "no"),
     # the status is for `up --wait` and `docker compose ps` to use.
@@ -129,6 +153,13 @@ services:
       timeout: 5s
       retries: 2
       start_period: 180s
+    # Shared external bridge (created by the RAG repo's `make init`).
+    # The alias lets the RAG stack reach this server as http://llama:8080.
+    networks:
+      default:
+      ai-net:
+        aliases:
+          - llama
     logging: *default-logging
 
   # ---------------------------------------------------------------------------
@@ -237,6 +268,11 @@ services:
       # Same key as llama-server: /metrics requires it (see prometheus.yml).
       - ./secrets/llama_api_key:/etc/prometheus/keys/llama_api_key:ro
       - prom-data:/data
+    # External ai-net (created by the RAG repo) so file_sd can reach
+    # rag-core by container name (targets/rag.yml).
+    networks:
+      default:
+      ai-net:
     logging: *default-logging
 
   # ---------------------------------------------------------------------------
@@ -290,3 +326,11 @@ services:
 volumes:
   prom-data:
   grafana-data:
+
+networks:
+  # External bridge created once by the RAG repo (`make init`), shared so
+  # rag-core can reach llama-server by its "llama" alias. Declared external:
+  # this repo neither creates nor removes it.
+  ai-net:
+    external: true
+    name: ai-net

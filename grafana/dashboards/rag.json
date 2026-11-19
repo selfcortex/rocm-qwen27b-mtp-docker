@@ -1,0 +1,202 @@
+{
+  "uid": "rag",
+  "title": "RAG (qdrant + bge-m3)",
+  "tags": ["rag"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Status",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "rag-core",
+      "id": 1,
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"rag\", instance=\"rag-core:8090\"}",
+          "legendFormat": ""
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Ingest queue (pending files)",
+      "id": 2,
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "queue_size{job=\"rag\"}",
+          "legendFormat": "queue"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Chunks indexed (total)",
+      "id": 3,
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "none", "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(ingest_chunks_total{job=\"rag\"})",
+          "legendFormat": "chunks"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Ingest errors (1h)",
+      "id": 4,
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(ingest_errors_total{job=\"rag\"}[1h]))",
+          "legendFormat": "errors"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Search",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Searches / sec",
+      "id": 5,
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(search_total{job=\"rag\"}[5m]))",
+          "legendFormat": "searches/s"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Search latency (avg, s)",
+      "id": 6,
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(search_seconds_total{job=\"rag\"}[5m])) / sum(rate(search_total{job=\"rag\"}[5m]))",
+          "legendFormat": "avg latency"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Ingest",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Files / chunks ingested",
+      "id": 7,
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "none" },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(ingest_files_total{job=\"rag\"}[15m]))",
+          "legendFormat": "files (15m)"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(increase(ingest_chunks_total{job=\"rag\"}[15m]))",
+          "legendFormat": "chunks (15m)"
+        }
+      ]
+    }
+  ]
+}

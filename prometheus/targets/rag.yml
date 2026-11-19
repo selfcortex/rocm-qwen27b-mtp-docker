@@ -1,0 +1,7 @@
+# rag-core target (file_sd).
+# Prometheus is attached to the external ai-net (created by the RAG repo,
+# /mnt/GameLinux/RAG `make init`), so rag-core is reached by container name.
+# /metrics is unauthenticated (the MCP auth wrapper only guards /mcp).
+- targets: ["rag-core:8090"]
+  labels:
+    service: rag-core

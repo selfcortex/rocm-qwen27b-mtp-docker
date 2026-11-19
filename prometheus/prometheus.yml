@@ -34,3 +34,9 @@ scrape_configs:
     file_sd_configs:
       - files: ["targets/llama.yml"]
         refresh_interval: 30s
+  # rag-core (RAG repo) exposes /metrics unauthenticated on the external
+  # ai-net; Prometheus is attached to that network to reach it by name.
+  - job_name: rag
+    file_sd_configs:
+      - files: ["targets/rag.yml"]
+        refresh_interval: 30s
