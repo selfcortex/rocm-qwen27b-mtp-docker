@@ -255,8 +255,9 @@ save_loop & SAVE_PID=$!
 tty_watchdog & TTY_PID=$!
 
 echo "[3/4] Launching $SERVICE (blocks until the model is loaded)..."
-$COMPOSE up -d --wait "$SERVICE"
 started=1
+$COMPOSE up -d --wait "$SERVICE"
+
 
 echo "[4/4] Attaching to live logs. Ctrl+C: stop model, archive logs, restore desktop."
 $COMPOSE logs -f "$SERVICE"
